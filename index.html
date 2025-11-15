@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لعبة السفينة الفضائية - عمر وزيزو</title>
+    <style>
+        /* CSS Styling for a dark, space-themed game */
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #0d1117; /* Dark space background */
+            color: #ffffff;
+            font-family: 'Inter', sans-serif;
+            flex-direction: column;
+            padding: 10px;
+        }
+
+        #gameContainer {
+            background-color: #161b22; /* Slightly lighter dark container */
+            border: 4px solid #30363d;
+            border-radius: 12px;
+            box-shadow: 0 0 25px rgba(27, 149, 219, 0.4); /* Blue glowing effect */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px;
+            max-width: 95vw;
+            width: 500px;
+            margin-bottom: 20px;
+        }
+
+        canvas {
+            background-color: #000000;
+            display: block;
+            border: 2px solid #58a6ff; /* Canvas border */
+            border-radius: 8px;
+            touch-action: none; /* Disable default touch actions */
+            width: 100%;
+            aspect-ratio: 1 / 1.5; /* Aspect ratio for the game area (2:3) */
+            max-height: 70vh;
+        }
+
+        /* Styling for the info panel and controls */
+        #infoPanel {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+            padding: 5px 10px;
+            background-color: #21262d;
+            border-radius: 6px;
+        }
+
+        #controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            width: 100%;
+            justify-content: center;
+        }
+
+        button {
+            background-color: #238636;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.2s, transform 0.1s;
+            box-shadow: 0 4px #1b662a;
+        }
+
+        button:hover {
+            background-color: #2ea043;
+        }
+
+        button:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px #1b662a;
+        }
+
+        .mobile-controls {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 500px;
+            margin-top: 20px;
+        }
+
+        .mobile-controls .d-pad {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .mobile-controls .d-pad .row {
+            display: flex;
+            gap: 5px;
+        }
+
+        .mobile-controls .action-buttons {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .control-btn {
+            background-color: #1f6feb;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+            box-shadow: 0 4px #185bcd;
+            touch-action: manipulation;
+        }
+
+        .control-btn.fire {
+            background-color: #e36060;
+            width: 70px;
+            height: 70px;
+            font-size: 1.2rem;
+            border-radius: 50%;
+            box-shadow: 0 4px #b84c4c;
+        }
+
+        /* Message Box Styling */
+        #messageBox {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.9);
+            padding: 30px;
+            border-radius: 10px;
+            border: 3px solid #58a6ff;
+            text-align: center;
+            z-index: 10;
+            box-shadow: 0 0 30px rgba(88, 166, 255, 0.7);
+            display: none; /* Initially hidden */
+        }
+
+        #messageBox h2 {
+            margin-top: 0;
+            color: #58a6ff;
+            font-size: 1.8rem;
+        }
+
+        #messageBox button {
+            margin-top: 15px;
+            padding: 10px 30px;
+            background-color: #238636;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="gameContainer">
+        <h1>لعبة السفينة الفضائية</h1>
+        <div id="infoPanel">
+            <div>النتيجة: <span id="score">0</span></div>
+            <div>الطاقة: <span id="health">3</span></div>
+        </div>
+        <canvas id="gameCanvas"></canvas>
+    </div>
+
+    <div class="mobile-controls">
+        <div class="d-pad">
+            <div class="row">
+                <button class="control-btn" data-dir="up" aria-label="تحريك للأعلى">↑</button>
+            </div>
+            <div class="row">
+                <button class="control-btn" data-dir="left" aria-label="تحريك لليسار">←</button>
+                <div style="width: 60px; height: 60px;"></div>
+                <button class="control-btn" data-dir="right" aria-label="تحريك لليمين">→</button>
+            </div>
+            <div class="row">
+                <button class="control-btn" data-dir="down" aria-label="تحريك للأسفل">↓</button>
+            </div>
+        </div>
+        <div class="action-buttons">
+            <button class="control-btn fire" data-action="fire" aria-label="إطلاق نار">إطلاق</button>
+        </div>
+    </div>
+
+    <!-- Message Box for game over/start -->
+    <div id="messageBox">
+        <h2 id="messageTitle">مرحباً بك في عالم الفضاء!</h2>
+        <p id="messageText">دافع عن سفينتك وحقق أعلى نتيجة!</p>
+        <button id="startButton">بدء اللعبة</button>
+    </div>
+
+    <script>
+        // Game Constants
+        const CANVAS_ID = 'gameCanvas';
+        const INFO_SCORE_ID = 'score';
+        const INFO_HEALTH_ID = 'health';
+        const MOBILE_CONTROLS_CLASS = '.control-btn';
+
+        const FPS = 60;
+        const SHIP_SIZE = 40;
+        const SHIP_COLOR = 'cyan';
+        const ASTEROID_COLOR = '#ff8c00'; // Dark orange
+        const ASTEROID_SPEED_MIN = 1;
+        const ASTEROID_SPEED_MAX = 3;
+        const PROJECTILE_COLOR = 'yellow';
+        const PROJECTILE_SPEED = 7;
+
+        // Global Game State
+        let canvas, ctx;
+        let score = 0;
+        let health = 3;
+        let isGameRunning = false;
+        let lastUpdateTime = 0;
+        let frameRateInterval = 1000 / FPS;
+
+        // Game Objects Arrays
+        let projectiles = [];
+        let asteroids = [];
+
+        // Player (Ship) Object
+        let player = {
+            x: 0,
+            y: 0,
+            width: SHIP_SIZE,
+            height: SHIP_SIZE,
+            speed: 5,
+            velX: 0,
+            velY: 0,
+            isFiring: false,
+            fireCooldown: 0,
+            maxCooldown: 15,
+            health: health
+        };
+
+        // Keyboard State (for desktop play)
+        let keys = {};
+        window.addEventListener('keydown', (e) => { keys[e.key] = true; });
+        window.addEventListener('keyup', (e) => { keys[e.key] = false; });
+
+        // Mobile Touch/Button State
+        let touchState = {
+            up: false,
+            down: false,
+            left: false,
+            right: false,
+            fire: false
+        };
+
+        // --- Game Object Classes ---
+
+        class Asteroid {
+            constructor(radius, speed) {
+                this.radius = radius;
+                this.x = Math.random() * canvas.width;
+                this.y = -radius;
+                this.speed = speed;
+                this.color = ASTEROID_COLOR;
+            }
+
+            update() {
+                this.y += this.speed;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.fillStyle = this.color;
+                // Draw a simple circle as the asteroid placeholder
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        class Projectile {
+            constructor(x, y, size) {
+                this.x = x;
+                this.y = y;
+                this.size = size;
+                this.color = PROJECTILE_COLOR;
+                this.speed = PROJECTILE_SPEED;
+            }
+
+            update() {
+                this.y -= this.speed;
+            }
+
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.fillRect(this.x - this.size / 2, this.y, this.size, this.size * 2);
+            }
+        }
+
+        // --- Core Game Functions ---
+
+        function initGame() {
+            canvas = document.getElementById(CANVAS_ID);
+            ctx = canvas.getContext('2d');
+
+            // Resize canvas for responsiveness
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            // Set initial player position
+            player.x = canvas.width / 2;
+            player.y = canvas.height - player.height * 2;
+            player.health = health;
+            score = 0;
+            updateInfoPanel();
+
+            // Setup Mobile Controls
+            setupMobileControls();
+
+            // Show start message box
+            showMessageBox("لعبة السفينة الفضائية", "دافع عن سفينتك وحقق أعلى نتيجة!", "بدء اللعبة");
+        }
+
+        function resizeCanvas() {
+            const container = document.getElementById('gameContainer');
+            // Set canvas size based on container's calculated size
+            canvas.width = container.clientWidth - 20; // Accounting for padding
+            canvas.height = canvas.width * 1.5; // Maintain 2:3 aspect ratio
+        }
+
+        function startGame() {
+            hideMessageBox();
+            isGameRunning = true;
+            resetGame();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function resetGame() {
+            player.health = 3;
+            score = 0;
+            player.velX = 0;
+            player.velY = 0;
+            player.x = canvas.width / 2;
+            player.y = canvas.height - player.height * 2;
+            projectiles = [];
+            asteroids = [];
+            lastUpdateTime = 0;
+            updateInfoPanel();
+        }
+
+        function gameOver() {
+            isGameRunning = false;
+            showMessageBox("انتهت اللعبة!", `نتيجة: ${score}`, "ابدأ من جديد");
+        }
+
+        function updateInfoPanel() {
+            document.getElementById(INFO_HEALTH_ID).textContent = player.health;
+            document.getElementById(INFO_SCORE_ID).textContent = score;
+            if (player.health <= 0) {
+                gameOver();
+            }
+        }
+
+        function gameLoop(timestamp) {
+            if (!isGameRunning) return;
+
+            const elapsed = timestamp - lastUpdateTime;
+
+            if (elapsed > frameRateInterval) {
+                update();
+                draw();
+                lastUpdateTime = timestamp - (elapsed % frameRateInterval);
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        let asteroidSpawnTimer = 0;
+        const ASTEROID_SPAWN_RATE = 40; // Spawns every 40 frames
+
+        function update() {
+            // 1. Player Movement (Desktop & Mobile)
+            player.velX = 0;
+            player.velY = 0;
+
+            // Handle Key Presses (Desktop)
+            if (keys['ArrowUp'] || keys['w']) player.velY = -player.speed;
+            if (keys['ArrowDown'] || keys['s']) player.velY = player.speed;
+            if (keys['ArrowLeft'] || keys['a']) player.velX = -player.speed;
+            if (keys['ArrowRight'] || keys['d']) player.velX = player.speed;
+
+            // Handle Mobile Touch State
+            if (touchState.up) player.velY = -player.speed;
+            if (touchState.down) player.velY = player.speed;
+            if (touchState.left) player.velX = -player.speed;
+            if (touchState.right) player.velX = player.speed;
+
+            // Apply movement
+            player.x += player.velX;
+            player.y += player.velY;
+
+            // Clamp player position within canvas bounds
+            player.x = Math.max(player.width / 2, Math.min(canvas.width - player.width / 2, player.x));
+            player.y = Math.max(player.height / 2, Math.min(canvas.height - player.height / 2, player.y));
+
+
+            // 2. Firing Logic
+            if (player.fireCooldown > 0) {
+                player.fireCooldown--;
+            }
+
+            const shouldFire = keys[' '] || touchState.fire;
+
+            if (shouldFire && player.fireCooldown === 0) {
+                // Fire projectile
+                const projectileSize = 4;
+                // Projectile 1 (Left)
+                projectiles.push(new Projectile(player.x - player.width / 4, player.y - player.height / 2, projectileSize));
+                // Projectile 2 (Right)
+                projectiles.push(new Projectile(player.x + player.width / 4, player.y - player.height / 2, projectileSize));
+
+                player.fireCooldown = player.maxCooldown; // Reset cooldown
+            }
+
+            // 3. Asteroid Spawning
+            asteroidSpawnTimer++;
+            if (asteroidSpawnTimer >= ASTEROID_SPAWN_RATE) {
+                const radius = Math.random() * 20 + 10; // 10 to 30
+                const speed = Math.random() * (ASTEROID_SPEED_MAX - ASTEROID_SPEED_MIN) + ASTEROID_SPEED_MIN;
+                asteroids.push(new Asteroid(radius, speed));
+                asteroidSpawnTimer = 0;
+            }
+
+            // 4. Update and Filter Game Objects
+            // Update projectiles and remove those off-screen
+            projectiles = projectiles.filter(p => {
+                p.update();
+                return p.y + p.size > 0;
+            });
+
+            // Update asteroids and check for player collision
+            asteroids = asteroids.filter(a => {
+                a.update();
+
+                // Player-Asteroid Collision Check (Simple Bounding Box vs Circle)
+                const playerLeft = player.x - player.width / 2;
+                const playerRight = player.x + player.width / 2;
+                const playerTop = player.y - player.height / 2;
+                const playerBottom = player.y + player.height / 2;
+
+                if (a.x + a.radius > playerLeft &&
+                    a.x - a.radius < playerRight &&
+                    a.y + a.radius > playerTop &&
+                    a.y - a.radius < playerBottom) {
+
+                    // Collision detected: Player Hit
+                    player.health--;
+                    updateInfoPanel();
+                    return false; // Remove asteroid
+                }
+
+                // Remove asteroids that go off-screen
+                return a.y - a.radius < canvas.height;
+            });
+
+            // 5. Projectile-Asteroid Collision Check
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                const p = projectiles[i];
+                for (let j = asteroids.length - 1; j >= 0; j--) {
+                    const a = asteroids[j];
+
+                    // Distance between centers
+                    const distSq = (p.x - a.x) ** 2 + (p.y - a.y) ** 2;
+
+                    // Check if collision occurred (distance less than asteroid radius)
+                    if (distSq < a.radius ** 2) {
+                        // Hit detected
+                        projectiles.splice(i, 1); // Remove projectile
+                        asteroids.splice(j, 1); // Remove asteroid
+                        score += 10;
+                        updateInfoPanel();
+                        break; // Move to the next projectile
+                    }
+                }
+            }
+        }
+
+        function draw() {
+            // Clear canvas
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Asteroids
+            asteroids.forEach(a => a.draw());
+
+            // Draw Projectiles
+            projectiles.forEach(p => p.draw());
+
+            // Draw Player Ship (Simple triangle/rocket shape)
+            ctx.fillStyle = SHIP_COLOR;
+            ctx.beginPath();
+            // Nose
+            ctx.moveTo(player.x, player.y - player.height / 2);
+            // Bottom left
+            ctx.lineTo(player.x - player.width / 2, player.y + player.height / 2);
+            // Bottom right
+            ctx.lineTo(player.x + player.width / 2, player.y + player.height / 2);
+            ctx.closePath();
+            ctx.fill();
+
+            // Draw Thrusters (red rectangles)
+            ctx.fillStyle = '#ff4500';
+            ctx.fillRect(player.x - player.width / 4, player.y + player.height / 2, player.width / 8, 5);
+            ctx.fillRect(player.x + player.width / 8, player.y + player.height / 2, player.width / 8, 5);
+        }
+
+        // --- Utility Functions ---
+
+        function setupMobileControls() {
+            const controls = document.querySelectorAll(MOBILE_CONTROLS_CLASS);
+
+            controls.forEach(btn => {
+                const dir = btn.dataset.dir;
+                const action = btn.dataset.action;
+
+                const handleStart = () => {
+                    if (dir) touchState[dir] = true;
+                    if (action === 'fire') touchState.fire = true;
+                };
+
+                const handleEnd = () => {
+                    if (dir) touchState[dir] = false;
+                    if (action === 'fire') touchState.fire = false;
+                };
+
+                // Handle touch events
+                btn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    handleStart();
+                });
+                btn.addEventListener('touchend', handleEnd);
+                btn.addEventListener('touchcancel', handleEnd);
+
+                // Handle mouse events (for desktop/testing on controls)
+                btn.addEventListener('mousedown', handleStart);
+                btn.addEventListener('mouseup', handleEnd);
+                btn.addEventListener('mouseleave', handleEnd); // Crucial for when the pointer moves off
+            });
+        }
+
+        function showMessageBox(title, text, buttonText) {
+            const msgBox = document.getElementById('messageBox');
+            document.getElementById('messageTitle').textContent = title;
+            document.getElementById('messageText').textContent = text;
+            document.getElementById('startButton').textContent = buttonText;
+            msgBox.style.display = 'block';
+            document.getElementById('startButton').onclick = startGame;
+        }
+
+        function hideMessageBox() {
+            document.getElementById('messageBox').style.display = 'none';
+        }
+
+        // Initialize the game on window load
+        window.onload = initGame;
+    </script>
+</body>
+</html>
+
