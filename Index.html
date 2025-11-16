@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>صقور الجو المصري ومهمة التحرير</title>
+    <!-- تضمين مكتبة Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+            background-color: #0d1117; 
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+        #gameCanvas {
+            background-color: #0b1a38; 
+            border: 5px solid #eab308; /* إطار ذهبي مصري */
+            border-radius: 12px;
+            box-shadow: 0 0 30px rgba(234, 179, 8, 0.7);
+            touch-action: none; 
+            position: relative;
+        }
+        .control-panel {
+            background-color: #1f2937;
+            padding: 1rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+            border-bottom: 2px solid #ef4444; 
+        }
+        .styled-button {
+            padding: 0.75rem 1.5rem;
+            font-weight: 800;
+            border-radius: 9999px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.4);
+        }
+        .styled-button:hover {
+            opacity: 0.9;
+            transform: scale(1.02);
+        }
+        .message-box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(17, 24, 39, 0.98);
+            border: 4px solid #facc15; 
+            padding: 2rem;
+            border-radius: 15px;
+            text-align: center;
+            z-index: 100;
+            max-width: 90%;
+            width: 350px;
+        }
+        .char-icon {
+            font-size: 35px;
+            line-height: 1;
+            transition: transform 0.2s;
+            background-color: #374151;
+            border-radius: 8px;
+            padding: 0.5rem;
+            border: 2px solid transparent;
+        }
+        .char-icon.selected {
+            border: 4px solid #facc15;
+            background-color: #4b5563;
+        }
+        #sky-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: -1;
+        }
+        .star {
+            position: absolute;
+            background-color: #ffffff;
+            border-radius: 50%;
+            opacity: 0.8;
+            animation: move-sky linear infinite;
+        }
+        @keyframes move-sky {
+            from { transform: translateY(0); }
+            to { transform: translateY(600px); } 
+        }
+        .boss-active #gameCanvas {
+            box-shadow: 0 0 40px 10px rgba(255, 0, 0, 0.8), 0 0 30px rgba(234, 179, 8, 0.7);
+        }
+        /* تصميم مؤشر التحميل البارز */
+        #audioLoading {
+            background-color: #2563eb;
+            color: #ffffff;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            box-shadow: 0 0 15px rgba(37, 99, 235, 0.8);
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body onload="initializeGame()">
+
+    <div id="game-container" class="w-full max-w-xl">
+        
+        <header class="control-panel text-center mb-4 flex justify-between items-center">
+            <div class="text-xl font-bold">النقاط: <span id="scoreDisplay" class="text-yellow-400">0</span></div>
+            <div class="text-xl font-bold">الحياة: <span id="healthDisplay" class="text-red-400">3</span></div>
+        </header>
+
+        <div class="relative mx-auto block">
+            <div id="sky-background"></div>
+            <canvas id="gameCanvas" width="400" height="600"></canvas>
+            
+            <!-- مؤشر التحميل الصوتي -->
+            <div id="audioLoading" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 hidden">
+                جاري توليد خطاب القيادة...
+            </div>
+        </div>
+
+        <!-- رسالة بدء اللعبة واختيار الشخصية -->
+        <div id="startScreen" class="message-box w-11/12 max-w-sm">
+            <h2 class="text-3xl font-black mb-4 text-cyan-400">صقور الجو المصري 🇪🇬</h2>
+            <h3 class="text-xl font-extrabold mb-4 text-yellow-400">مهمة تحرير الأمة العربية</h3>
+            
+            <!-- تحية محمد صبري -->
+            <p class="text-sm text-gray-500 mb-6 border-t border-gray-700 pt-3">
+                مع تحياتي: محمد صبري الشرقاوي.
+            </p>
+            
+            <p class="mb-6 text-gray-300">اختر طائرتك/قائدك للانطلاق:</p>
+            
+            <div id="char-selection" class="flex justify-around mb-6">
+                <!-- إضافة القائد السيسي -->
+                <button data-char="السيسي" data-emoji="⭐" class="char-icon hover:scale-110 transition p-2 rounded-lg">⭐</button>
+                <button data-char="Omar" data-emoji="🪖" class="char-icon hover:scale-110 transition p-2 rounded-lg">🪖</button>
+                <button data-char="Zizo" data-emoji="✈️" class="char-icon hover:scale-110 transition p-2 rounded-lg">✈️</button>
+                <button data-char="Souad" data-emoji="🛸" class="char-icon hover:scale-110 transition p-2 rounded-lg">🛸</button>
+                <button data-char="Huda" data-emoji="🚁" class="char-icon hover:scale-110 transition p-2 rounded-lg">🚁</button>
+            </div>
+            
+            <button id="startButton" class="styled-button bg-green-500 hover:bg-green-600 text-white hidden" disabled>
+                ابدأ الطلعة الجوية!
+            </button>
+            <p id="selectionMessage" class="text-sm text-yellow-500 mt-2">اختر قائدك/طائرتك.</p>
+        </div>
+
+        <!-- رسالة نهاية اللعبة -->
+        <div id="gameOverScreen" class="message-box w-11/12 max-w-sm hidden">
+            <h2 class="text-4xl font-black mb-4 text-red-500">تم تدمير الطائرة! 💥</h2>
+            <p class="text-xl mb-4 text-gray-200">نقاطك النهائية: <span id="finalScore" class="text-yellow-400 font-extrabold">0</span></p>
+            
+            <p class="text-md mb-6 text-yellow-200 border-b border-yellow-700 pb-3">
+                ⚠️ **تذكير القائد:** الصلاة، بر الوالدين، قراءة القرآن، وإدارة الوقت هي مهامك الأهم!
+            </p>
+            
+            <button id="restartButton" class="styled-button bg-blue-500 hover:bg-blue-600 text-white mt-4">
+                إعادة الطيران
+            </button>
+        </div>
+        
+        <!-- رسالة التعزيز المؤقتة -->
+        <div id="powerupMessage" class="fixed top-4 left-1/2 -translate-x-1/2 bg-yellow-600 text-white p-3 rounded-lg shadow-xl font-bold hidden opacity-0 transition-opacity duration-300">
+            تم تفعيل تعزيز!
+        </div>
+    </div>
+
+    <script>
+        // المتغيرات الأساسية للعبة
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        let animationFrameId;
+        
+        // إعدادات اللعبة
+        const GAME_SPEED = 2.5; 
+        const BASE_PLAYER_SIZE = 35; 
+        let score = 0;
+        let health = 3; 
+        let isPlaying = false;
+        let playerChar = null; 
+        let currentSectorIndex = 0; 
+        let isBossActive = false; 
+        const SCORE_TO_NEXT_STAGE = 600; 
+        let stageTransitionTimer = 0; 
+
+        // المناطق العربية المحددة (المراحل)
+        const LOCATIONS = [
+            'المهمة 1: سماء مصر - إطلاق العملية',
+            'المهمة 2: تحرير السودان 🇸🇩',
+            'المهمة 3: تحرير ليبيا 🇱🇾',
+            'المهمة 4: تحرير تونس 🇹🇳',
+            'المهمة 5: تحرير الجزائر 🇩🇿',
+            'المهمة 6: تحرير المغرب 🇲🇦',
+            'المهمة 7: تحرير اليمن 🇾🇪',
+            'المهمة 8: تحرير العراق 🇮🇶',
+            'المهمة 9: تحرير سوريا 🇸🇾',
+            'المهمة 10: تحرير فلسطين 🇵🇸',
+            'المهمة 11: تحرير الأردن 🇯🇴',
+            'المهمة 12: تحرير لبنان 🇱🇧',
+        ];
+        
+        // تعريف الزعيم العملاق 
+        const BOSS_DEFINITION = { 
+            emoji: '🛰️', 
+            score: 500, 
+            baseHealth: 5, 
+            size: 70, 
+            speed: 0.2 
+        };
+        
+        // العناصر في واجهة المستخدم
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const healthDisplay = document.getElementById('healthDisplay');
+        const startScreen = document.getElementById('startScreen');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const startButton = document.getElementById('startButton');
+        const restartButton = document.getElementById('restartButton');
+        const charSelection = document.getElementById('char-selection');
+        const selectionMessage = document.getElementById('selectionMessage');
+        const powerupMessage = document.getElementById('powerupMessage');
+        const audioLoadingIndicator = document.getElementById('audioLoading');
+
+        // كائن اللاعب
+        let player = {
+            x: canvas.width / 2,
+            y: canvas.height - 50,
+            width: BASE_PLAYER_SIZE,
+            height: BASE_PLAYER_SIZE,
+            emoji: '🪖',
+            shootingCooldown: 0,
+            maxCooldown: 5, 
+            isInvincible: false,
+            invincibleTimer: 0
+        };
+
+        let bullets = [];
+        let enemies = [];
+        let powerups = [];
+
+        // تعريفات الأعداء (المخاطر)
+        const enemyDefinitions = [
+            { emoji: '🛩️', score: 10, health: 1, color: '#ef4444' }, 
+            { emoji: '🚁', score: 20, health: 2, color: '#a855f7' }, 
+            { emoji: '📡', score: 50, health: 3, color: '#facc15' }  
+        ];
+        
+        // تعريفات التعزيزات (القيم والنصائح)
+        const powerupDefinitions = [
+            { emoji: '🕌', effect: 'invincibility', color: '#10b981', message: 'تعزيز الصلاة (حماية ضد الأعداء)' }, 
+            { emoji: '📖', effect: 'extraLife', color: '#f59e0b', message: 'نور القرآن (حياة إضافية)' },
+            { emoji: '👨‍👩‍👧‍👦', effect: 'clearScreen', color: '#3b82f6', message: 'بر الوالدين (مسح الشاشة من المخاطر)' }, 
+            { emoji: '⏱️', effect: 'rapidFire', color: '#06b6d4', message: 'انضباط الوقت (نار فائقة السرعة مؤقتاً)' },
+            { emoji: '🍎', effect: 'health', color: '#ef4444', message: 'الغذاء الصحي (استعادة صحة)' },      
+            { emoji: '😴', effect: 'slowMotion', color: '#8b5cf6', message: 'النوم الكافي (تبطئة الزمن)' },         
+            { emoji: '🧹', effect: 'scoreMultiplier', color: '#f97316', message: 'التنظيم (مضاعف نقاط)' },      
+            { emoji: '🫂', effect: 'fireRate', color: '#eab308', message: 'العلاقات الإيجابية (زيادة معدل النيران)' },        
+        ];
+
+
+        // ------------------------------------------
+        // وظائف الصوت والـ TTS API
+        // ------------------------------------------
+
+        // تم تهيئة AudioContext ليتم استخدامه في دالة pcmToWav
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        /**
+         * تحويل بيانات Base64 إلى ArrayBuffer.
+         * @param {string} base64 - سلسلة Base64.
+         * @returns {ArrayBuffer}
+         */
+        function base64ToArrayBuffer(base64) {
+            const binaryString = atob(base64);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        /**
+         * دالة مساعدة لكتابة سلاسل في DataView
+         */
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
+
+        /**
+         * تحويل بيانات PCM خام إلى ملف WAV Blob.
+         */
+        function pcmToWav(pcm16, sampleRate) {
+            const numChannels = 1;
+            const bytesPerSample = 2; // 16-bit PCM
+
+            const buffer = new ArrayBuffer(44 + pcm16.length * bytesPerSample);
+            const view = new DataView(buffer);
+            let offset = 0;
+
+            // RIFF chunk descriptor
+            writeString(view, offset, 'RIFF'); offset += 4;
+            view.setUint32(offset, 36 + pcm16.length * bytesPerSample, true); offset += 4;
+            writeString(view, offset, 'WAVE'); offset += 4;
+            
+            // FMT chunk
+            writeString(view, offset, 'fmt '); offset += 4;
+            view.setUint32(offset, 16, true); offset += 4; 
+            view.setUint16(offset, 1, true); offset += 2; 
+            view.setUint16(offset, numChannels, true); offset += 2;
+            view.setUint32(offset, sampleRate, true); offset += 4;
+            view.setUint32(offset, sampleRate * numChannels * bytesPerSample, true); offset += 4; 
+            view.setUint16(offset, numChannels * bytesPerSample, true); offset += 2; 
+            view.setUint16(offset, 8 * bytesPerSample, true); offset += 2; 
+            
+            // DATA chunk
+            writeString(view, offset, 'data'); offset += 4;
+            view.setUint32(offset, pcm16.length * bytesPerSample, true); offset += 4;
+
+            for (let i = 0; i < pcm16.length; i++, offset += bytesPerSample) {
+                view.setInt16(offset, pcm16[i], true);
+            }
+
+            return new Blob([view], { type: 'audio/wav' });
+        }
+
+        /**
+         * توليد وتشغيل خطاب تحفيزي باستخدام Gemini TTS API.
+         * @param {string} text - النص المراد تحويله إلى صوت.
+         * @param {string} voiceName - اسم الصوت (مثل Kore, Puck).
+         * @param {string} languageCode - كود اللغة (مثل ar-EG).
+         */
+        async function generateAndPlayTTS(text, voiceName = "Kore", languageCode = "ar-EG") {
+            audioLoadingIndicator.classList.remove('hidden');
+            
+            // تحقق من حالة AudioContext
+            if (audioContext.state === 'suspended') {
+                await audioContext.resume();
+            }
+
+            const apiKey = ""; 
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [{
+                    parts: [{ text: text }]
+                }],
+                generationConfig: {
+                    responseModalities: ["AUDIO"],
+                    speechConfig: {
+                        voiceConfig: {
+                            prebuiltVoiceConfig: { voiceName: voiceName }
+                        },
+                        languageCode: languageCode
+                    }
+                },
+                model: "gemini-2.5-flash-preview-tts"
+            };
+
+            let audioUrl = null;
+            let retries = 0;
+            const maxRetries = 3;
+            let delay = 1000; 
+
+            while (retries < maxRetries) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.status === 429) { 
+                        retries++;
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        delay *= 2; 
+                        continue;
+                    }
+
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+                    const result = await response.json();
+                    const part = result?.candidates?.[0]?.content?.parts?.[0];
+                    const audioData = part?.inlineData?.data;
+                    const mimeType = part?.inlineData?.mimeType;
+
+                    if (audioData && mimeType && mimeType.startsWith("audio/")) {
+                        const rateMatch = mimeType.match(/rate=(\d+)/);
+                        const sampleRate = rateMatch ? parseInt(rateMatch[1], 10) : 16000; 
+
+                        const pcmData = base64ToArrayBuffer(audioData);
+                        const pcm16 = new Int16Array(pcmData);
+                        const wavBlob = pcmToWav(pcm16, sampleRate);
+                        audioUrl = URL.createObjectURL(wavBlob);
+                        
+                        const audio = new Audio(audioUrl);
+                        // نستخدم audio.play() داخل try/catch للتعامل مع حظر التشغيل التلقائي
+                        await audio.play().catch(e => {
+                            console.error("Error playing audio (Auto-Play Blocked):", e);
+                            showPowerupMessage("⚠️ المتصفح منع تشغيل الصوت تلقائياً. يرجى محاولة تشغيله يدويًا!");
+                        });
+                        break; 
+                    } else {
+                        throw new Error("Invalid audio response structure or missing data.");
+                    }
+                } catch (error) {
+                    console.error("Failed to generate or play TTS:", error);
+                    retries = maxRetries; 
+                }
+            }
+            audioLoadingIndicator.classList.add('hidden');
+        }
+
+
+        // ------------------------------------------
+        // 1. وظائف التهيئة والبدء والتقدم
+        // ------------------------------------------
+
+        function initializeGame() {
+            setupInputHandlers();
+            setupCharacterSelection();
+            createSkyBackground(); 
+            restartGameVariables();
+        }
+
+        function setupCharacterSelection() {
+            Array.from(charSelection.children).forEach(button => {
+                button.addEventListener('click', (e) => {
+                    Array.from(charSelection.children).forEach(b => b.classList.remove('selected'));
+                    
+                    const charName = e.currentTarget.dataset.char;
+                    const charEmoji = e.currentTarget.dataset.emoji;
+                    playerChar = charName; 
+                    player.emoji = charEmoji;
+                    e.currentTarget.classList.add('selected');
+                    
+                    selectionMessage.textContent = `لقد اخترت القائد: ${charName} (${charEmoji})`;
+                    startButton.classList.remove('hidden');
+                    startButton.disabled = false;
+                });
+            });
+
+            startButton.addEventListener('click', startGame);
+            restartButton.addEventListener('click', startGame);
+        }
+        
+        // وظيفة لتشغيل صوت نقرة بسيط لتفعيل AudioContext
+        function activateAudioContext() {
+            if (audioContext.state === 'suspended') {
+                audioContext.resume().then(() => {
+                    console.log("AudioContext resumed on user interaction.");
+                }).catch(e => console.error("Could not resume AudioContext:", e));
+            }
+        }
+        
+        // ربط تفعيل AudioContext بأول تفاعل
+        document.body.addEventListener('click', activateAudioContext, { once: true });
+        document.body.addEventListener('touchstart', activateAudioContext, { once: true });
+
+
+        async function startGame() {
+            if (!playerChar) return; 
+            
+            startScreen.classList.add('hidden');
+            gameOverScreen.classList.add('hidden');
+            isPlaying = true;
+            restartGameVariables();
+            
+            // تطبيق المزايا الخاصة إذا كان القائد هو السيسي
+            if (playerChar === 'السيسي') {
+                player.maxCooldown = 4; // إطلاق نار أسرع
+            }
+
+            applyStageBoosts(); 
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+            }
+            animate();
+            player.shootingCooldown = 0; 
+            
+            // 1. الخطاب التحفيزي الرسمي (بصوت رسمي)
+            let mainSpeech = "يا صقر الجو المصري، مهمتك تبدأ الآن! تذكر، أنت حفيد حضارة سبعة آلاف سنة. انطلق وقل للعالم: نحن أم الدنيا، ولن نتنازل عن حريتنا!";
+            let mainVoice = 'Kore'; // صوت رسمي وثابت
+            
+            if (playerChar === 'السيسي') {
+                mainSpeech = "تحية سيادة القائد الأعلى للقوات المسلحة. باسم مصر العظيمة، أطلق طلقتك الأولى نحو التحرير. لن تهتز الأرض تحت أقدامنا ونحن ندافع عن كرامة أمتنا!";
+                mainVoice = 'Orus'; // صوت أكثر حزماً
+            }
+            
+            await generateAndPlayTTS(mainSpeech, mainVoice, 'ar-EG');
+            
+            // 2. الخطاب التحفيزي الشخصي (بصوت ودي ومحفز)
+            let conversationalSpeech = "";
+            let friendlyVoice = 'Puck'; // صوت مبهج ومحفز
+
+            if (playerChar === 'Omar') {
+                conversationalSpeech = "هيا يا عمر! أنت أمل مصر في الجو. تحرّك بسرعة ودقة!";
+            } else if (playerChar === 'Zizo') {
+                conversationalSpeech = "هيا يا زيزو! أظهر لهم قوة الصقور المصرية، بالتوفيق في طلعة التحرير.";
+            }
+
+            if (conversationalSpeech) {
+                // الانتظار قليلاً بعد الخطاب الرئيسي لتجنب التداخل
+                setTimeout(() => {
+                    generateAndPlayTTS(conversationalSpeech, friendlyVoice, 'ar-EG');
+                }, 500); 
+            }
+        }
+
+        function restartGameVariables() {
+            score = 0;
+            health = 3;
+            bullets = [];
+            enemies = [];
+            powerups = [];
+            currentSectorIndex = 0;
+            isBossActive = false;
+            stageTransitionTimer = 0; 
+            document.body.classList.remove('boss-active'); 
+            
+            player.width = BASE_PLAYER_SIZE;
+            player.height = BASE_PLAYER_SIZE;
+            player.maxCooldown = 5; // القيمة الافتراضية
+
+            player.x = canvas.width / 2;
+            player.y = canvas.height - 50;
+            player.invincibleTimer = 0;
+            player.isInvincible = false;
+            updateDisplay();
+        }
+
+        function gameOver() {
+            isPlaying = false;
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+            }
+            document.getElementById('finalScore').textContent = score;
+            gameOverScreen.classList.remove('hidden');
+            document.body.classList.remove('boss-active');
+            
+            // خطاب صوتي عند الخسارة
+            generateAndPlayTTS("فشلت المهمة! لكن لا تستسلم. أعد الطيران ولا تنسى قيمنا الأصيلة.", 'Fenrir', 'ar-EG');
+        }
+
+        function advanceStage() {
+            currentSectorIndex++;
+            isBossActive = false;
+            document.body.classList.remove('boss-active'); 
+            
+            if (currentSectorIndex >= LOCATIONS.length) {
+                showPowerupMessage('🎉 انتصار تاريخي! تم تحرير جميع الدول بنجاح!');
+                currentSectorIndex = LOCATIONS.length - 1; 
+                isPlaying = false; 
+                setTimeout(() => {
+                    const finalMsg = document.getElementById('gameOverScreen');
+                    finalMsg.querySelector('h2').textContent = 'انتصار تاريخي! 🎉';
+                    finalMsg.querySelector('h2').classList.remove('text-red-500');
+                    finalMsg.querySelector('h2').classList.add('text-green-500');
+                    finalMsg.classList.remove('hidden');
+                }, 500);
+                 generateAndPlayTTS("تم تحقيق النصر الكامل! العروبة تنتصر بفضل قيادتكم الحكيمة.", 'Kore', 'ar-EG');
+            } else {
+                applyStageBoosts();
+                const stageSpeech = `عظيم! تم تحقيق الهدف. الآن انطلق إلى: ${LOCATIONS[currentSectorIndex].split(':')[1]}`;
+                generateAndPlayTTS(stageSpeech, 'Charon', 'ar-EG');
+            }
+        }
+
+        function applyStageBoosts() {
+            let baseCooldown = (playerChar === 'السيسي') ? 4 : 5;
+            player.maxCooldown = Math.max(1, baseCooldown - currentSectorIndex); 
+            
+            player.width = BASE_PLAYER_SIZE + (currentSectorIndex * 3);
+            player.height = BASE_PLAYER_SIZE + (currentSectorIndex * 3);
+            stageTransitionTimer = 180; 
+            
+            showPowerupMessage(`بدء مهمة: ${LOCATIONS[currentSectorIndex % LOCATIONS.length]}`);
+        }
+
+        function spawnBoss() {
+            const size = BOSS_DEFINITION.size;
+            const bossHealth = BOSS_DEFINITION.baseHealth + (currentSectorIndex * 1); 
+            
+            enemies = []; 
+            
+            enemies.push({
+                ...BOSS_DEFINITION,
+                maxHealth: bossHealth,
+                health: bossHealth,
+                x: canvas.width / 2,
+                y: -size,
+                size: size,
+                speedMultiplier: BOSS_DEFINITION.speed, 
+                isBoss: true, 
+                cannotDie: false 
+            });
+            isBossActive = true;
+            document.body.classList.add('boss-active'); 
+            showPowerupMessage('⚠️ الهدف الكبير ظهر! قم بتدميره بسرعة للانتقال للمهمة التالية.');
+            generateAndPlayTTS('احذر، ظهر الهدف الكبير في الأفق! لا تتردد في تدميره.', 'Orus', 'ar-EG');
+        }
+
+        // ------------------------------------------
+        // 2. وظائف الرسم
+        // ------------------------------------------
+
+        function drawPlayer() {
+            // تعديل حجم الأيقونة بناءً على القائد/المرحلة
+            let currentSize = player.width;
+            if (playerChar === 'السيسي') {
+                currentSize += 5; // حجم أكبر قليلاً للقائد الأعلى
+            }
+            
+            ctx.font = `${currentSize}px sans-serif`;
+            ctx.globalAlpha = (player.isInvincible && (Math.floor(Date.now() / 100) % 2)) ? 0.4 : 1; 
+            ctx.fillText(player.emoji, player.x - currentSize / 2, player.y + currentSize / 2);
+            ctx.globalAlpha = 1;
+
+            if (playerChar) {
+                ctx.fillStyle = '#facc15'; 
+                ctx.font = '14px Cairo';
+                ctx.textAlign = 'center';
+                ctx.fillText(playerChar, player.x, player.y + currentSize / 2 + 10); 
+                ctx.textAlign = 'start'; 
+            }
+            
+            ctx.font = '20px sans-serif'; 
+            ctx.textAlign = 'center';
+            ctx.fillText('🇪🇬', player.x, player.y + currentSize / 2 + 30); 
+            ctx.textAlign = 'start'; 
+        }
+
+        function drawBullets() {
+            ctx.fillStyle = '#ff7f50'; 
+            bullets.forEach(bullet => {
+                ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
+            });
+        }
+
+        function drawEnemies() {
+            enemies.forEach(enemy => {
+                ctx.font = `${enemy.size}px sans-serif`;
+                
+                if (enemy.cannotDie) {
+                    ctx.globalAlpha = (Math.floor(Date.now() / 150) % 2) ? 1 : 0.6; 
+                }
+                
+                ctx.fillText(enemy.emoji, enemy.x - enemy.size / 2, enemy.y + enemy.size / 2);
+                ctx.globalAlpha = 1; 
+
+                ctx.font = '18px sans-serif'; 
+                ctx.textAlign = 'center';
+                ctx.fillText('🇮🇱', enemy.x, enemy.y + enemy.size / 2 + 20);
+                ctx.textAlign = 'start';
+
+                if (!enemy.cannotDie) {
+                    if (enemy.isBoss) {
+                        const barWidth = 60; 
+                        const barHeight = 6;
+                        const barX = enemy.x - barWidth / 2;
+                        const barY = enemy.y - enemy.size / 2 - 15;
+                        const currentHealthWidth = (enemy.health / enemy.maxHealth) * barWidth;
+
+                        ctx.fillStyle = '#444444'; 
+                        ctx.fillRect(barX, barY, barWidth, barHeight);
+
+                        ctx.fillStyle = '#ff0000'; 
+                        ctx.fillRect(barX, barY, currentHealthWidth, barHeight);
+                    } else if (enemy.health < enemy.maxHealth) {
+                        const healthBarWidth = (enemy.health / enemy.maxHealth) * enemy.size;
+                        ctx.fillStyle = enemy.health > 1 ? '#eab308' : '#ef4444';
+                        ctx.fillRect(enemy.x - enemy.size / 2, enemy.y - enemy.size / 2 - 5, healthBarWidth, 3);
+                    }
+                }
+            });
+        }
+
+        function drawPowerups() {
+            powerups.forEach(pu => {
+                ctx.font = `25px sans-serif`;
+                ctx.beginPath();
+                ctx.arc(pu.x, pu.y, 18, 0, Math.PI * 2);
+                ctx.fillStyle = pu.color + '60'; 
+                ctx.fill();
+                ctx.closePath();
+
+                ctx.fillText(pu.emoji, pu.x - 12.5, pu.y + 12.5);
+            });
+        }
+        
+        function drawHUD() {
+            ctx.fillStyle = isBossActive ? 'rgba(239, 68, 68, 0.9)' : 'rgba(234, 179, 8, 0.8)'; 
+            ctx.font = '20px Cairo';
+            const locationText = LOCATIONS[currentSectorIndex % LOCATIONS.length];
+            const textWidth = ctx.measureText(locationText).width;
+            
+            ctx.fillRect(canvas.width - textWidth - 20, canvas.height - 30, textWidth + 20, 25);
+            
+            ctx.fillStyle = '#0d1117';
+            ctx.fillText(locationText, canvas.width - textWidth - 10, canvas.height - 10);
+        }
+
+        function drawStageTransition() {
+            if (stageTransitionTimer > 0) {
+                stageTransitionTimer--;
+                
+                let alpha = 1;
+                if (stageTransitionTimer > 150) { 
+                    alpha = (180 - stageTransitionTimer) / 30;
+                } else if (stageTransitionTimer < 30) { 
+                    alpha = stageTransitionTimer / 30;
+                }
+                alpha = Math.min(1, Math.max(0, alpha));
+
+                ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                ctx.font = '45px Cairo'; 
+                ctx.textAlign = 'center';
+                const locationText = LOCATIONS[currentSectorIndex % LOCATIONS.length];
+                ctx.fillText(locationText, canvas.width / 2, canvas.height / 2 + 10);
+            }
+        }
+
+
+        function updateDisplay() {
+            scoreDisplay.textContent = score;
+            healthDisplay.textContent = health;
+        }
+        
+        function showPowerupMessage(msg) {
+            powerupMessage.textContent = msg;
+            powerupMessage.classList.remove('hidden', 'opacity-0');
+            powerupMessage.classList.add('opacity-100');
+            
+            setTimeout(() => {
+                powerupMessage.classList.remove('opacity-100');
+                powerupMessage.classList.add('opacity-0');
+                setTimeout(() => powerupMessage.classList.add('hidden'), 300);
+            }, 1500);
+        }
+
+        function createSkyBackground() {
+            const background = document.getElementById('sky-background');
+            for (let i = 0; i < 50; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.width = `${Math.random() * 2 + 1}px`;
+                star.style.height = star.style.width;
+                star.style.left = `${Math.random() * 100}%`;
+                star.style.top = `${Math.random() * 100}%`;
+                star.style.animationDuration = `${10 + Math.random() * 20}s`;
+                background.appendChild(star);
+            }
+        }
+
+        // ------------------------------------------
+        // 3. تحديث الحركات والفيزياء
+        // ------------------------------------------
+
+        function updatePlayerState() {
+            if (player.shootingCooldown > 0) {
+                player.shootingCooldown--;
+            }
+            if (player.invincibleTimer > 0) {
+                player.invincibleTimer--;
+                if (player.invincibleTimer === 0) {
+                    player.isInvincible = false;
+                }
+            }
+            
+            if (!isBossActive && score >= (currentSectorIndex + 1) * SCORE_TO_NEXT_STAGE && currentSectorIndex < LOCATIONS.length) {
+                spawnBoss();
+            }
+        }
+
+        function updateBullets() {
+            bullets.forEach(bullet => {
+                bullet.y -= 7; 
+            });
+            bullets = bullets.filter(bullet => bullet.y > 0);
+        }
+
+        function updateEnemies() {
+            enemies.forEach(enemy => {
+                enemy.y += GAME_SPEED * enemy.speedMultiplier;
+                
+                if (enemy.isBoss) {
+                    if (enemy.y > 100) {
+                        enemy.y -= 0.5; 
+                    }
+                }
+            });
+            enemies = enemies.filter(enemy => {
+                if (enemy.isBoss && enemy.y >= canvas.height - enemy.size) {
+                    gameOver();
+                    return false;
+                }
+                return enemy.y < canvas.height + enemy.size;
+            });
+        }
+
+        function updatePowerups() {
+            powerups.forEach(pu => {
+                pu.y += GAME_SPEED * 0.5; 
+            });
+            powerups = powerups.filter(pu => pu.y < canvas.height + 25);
+        }
+
+        let enemySpawnTimer = 0;
+        let powerupSpawnTimer = 0;
+
+        function spawnObjects() {
+            if (isBossActive) return; 
+
+            enemySpawnTimer++;
+            if (enemySpawnTimer > Math.max(20, 100 - score / 50)) { 
+                spawnEnemy();
+                enemySpawnTimer = 0;
+            }
+
+            powerupSpawnTimer++;
+            if (powerupSpawnTimer > 400) { 
+                spawnPowerup();
+                powerupSpawnTimer = 0;
+            }
+        }
+
+        function spawnEnemy() {
+            const def = enemyDefinitions[Math.floor(Math.random() * enemyDefinitions.length)];
+            const size = 30;
+            
+            const cannotDie = def.emoji === '🛩️' && Math.random() < 0.2; 
+            
+            enemies.push({
+                ...def,
+                maxHealth: def.health,
+                health: def.health,
+                x: Math.random() * (canvas.width - size) + size / 2,
+                y: -size,
+                size: size,
+                speedMultiplier: 1 + Math.random() * 0.5,
+                cannotDie: cannotDie 
+            });
+        }
+
+        function spawnPowerup() {
+            const def = powerupDefinitions[Math.floor(Math.random() * powerupDefinitions.length)];
+            powerups.push({
+                ...def,
+                x: Math.random() * (canvas.width - 30) + 15,
+                y: -25,
+            });
+        }
+
+        // ------------------------------------------
+        // 4. الاصطدام وتطبيق التأثيرات
+        // ------------------------------------------
+
+        function fireBullet() {
+            if (player.shootingCooldown > 0) return;
+
+            bullets.push({
+                x: player.x - 2, 
+                y: player.y - player.height / 2,
+                width: 4,
+                height: 10
+            });
+            player.shootingCooldown = player.maxCooldown; 
+        }
+
+        function checkCollisions() {
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const bullet = bullets[i];
+                let bulletDestroyed = false;
+
+                for (let j = enemies.length - 1; j >= 0; j--) {
+                    const enemy = enemies[j];
+                    if (isColliding(bullet, enemy, true)) {
+                        bullets.splice(i, 1); 
+                        bulletDestroyed = true;
+                        
+                        if (enemy.cannotDie) {
+                            score += 1; 
+                        } else {
+                            enemy.health--;
+                            
+                            if (enemy.health <= 0) {
+                                score += enemy.score;
+                                
+                                if (enemy.isBoss) {
+                                    advanceStage(); 
+                                }
+                                enemies.splice(j, 1); 
+                            }
+                        }
+                        break; 
+                    }
+                }
+                if (bulletDestroyed) {
+                    i--; 
+                }
+            }
+
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const enemy = enemies[i];
+                if (isColliding(player, enemy, false)) {
+                    
+                    if (!player.isInvincible) {
+                        health--; 
+                        player.isInvincible = true;
+                        player.invincibleTimer = 180; 
+                        if (health <= 0) {
+                            gameOver();
+                        }
+                    }
+                    
+                    if (!enemy.isBoss) {
+                        enemies.splice(i, 1); 
+                    }
+                    
+                    updateDisplay();
+                }
+            }
+
+            for (let i = powerups.length - 1; i >= 0; i--) {
+                const pu = powerups[i];
+                if (isColliding(player, pu, false)) {
+                    applyPowerupEffect(pu);
+                    powerups.splice(i, 1); 
+                }
+            }
+        }
+
+        function isColliding(obj1, obj2, isBullet) {
+            const obj1W = isBullet ? obj1.width : player.width;
+            const obj1H = isBullet ? obj1.height : player.height;
+            const obj1X = isBullet ? obj1.x : obj1.x - obj1W / 2;
+            const obj1Y = isBullet ? obj1.y : obj1.y - obj1H / 2;
+
+            const obj2W = obj2.size || obj2.width; 
+            const obj2H = obj2.size || obj2.height;
+            const obj2X = obj2.x - obj2W / 2;
+            const obj2Y = obj2.y - obj2H / 2;
+
+            return obj1X < obj2X + obj2W &&
+                   obj1X + obj1W > obj2X &&
+                   obj1Y < obj2Y + obj2H &&
+                   obj1Y + obj1H > obj2Y;
+        }
+
+        function applyPowerupEffect(pu) {
+            score += 10;
+            showPowerupMessage(pu.message);
+
+            switch (pu.effect) {
+                case 'invincibility': 
+                    player.isInvincible = true;
+                    player.invincibleTimer = 300; 
+                    break;
+                case 'fireRate': 
+                    player.maxCooldown = Math.max(1, player.maxCooldown - 1); 
+                    break;
+                case 'clearScreen': 
+                    enemies = enemies.filter(e => e.isBoss); 
+                    break;
+                case 'health': 
+                    health = Math.min(5, health + 1);
+                    break;
+                case 'slowMotion': 
+                    enemies.forEach(e => e.speedMultiplier = e.isBoss ? 0.1 : 0.5);
+                    setTimeout(() => { 
+                        enemies.forEach(e => e.speedMultiplier = e.isBoss ? BOSS_DEFINITION.speed : (1 + Math.random() * 0.5)); 
+                    }, 3000);
+                    break;
+                case 'scoreMultiplier': 
+                    score += 50; 
+                    break;
+                case 'extraLife': 
+                    health = Math.min(5, health + 1);
+                    break;
+                case 'rapidFire': 
+                    player.maxCooldown = Math.max(1, player.maxCooldown - 10);
+                    setTimeout(() => { player.maxCooldown = Math.max(1, 5 - currentSectorIndex); }, 4000); 
+                    break;
+            }
+            updateDisplay();
+            // خطاب صوتي عند تجميع تعزيز
+            generateAndPlayTTS(`تم تفعيل التعزيز: ${pu.message.split('(')[0].trim()}`, 'Puck', 'ar-EG');
+        }
+
+        // ------------------------------------------
+        // 5. حلقة اللعبة الرئيسية (Animation Loop)
+        // ------------------------------------------
+
+        function animate() {
+            if (!isPlaying) {
+                return;
+            }
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            updatePlayerState();
+            updateBullets();
+            updateEnemies();
+            updatePowerups();
+            spawnObjects();
+            
+            fireBullet();
+            checkCollisions();
+
+            drawBullets();
+            drawEnemies();
+            drawPowerups();
+            drawPlayer();
+            drawHUD(); 
+            drawStageTransition(); 
+            updateDisplay();
+
+            animationFrameId = requestAnimationFrame(animate);
+        }
+
+        // ------------------------------------------
+        // 6. التحكم بالإدخال (ماوس / لمس)
+        // ------------------------------------------
+
+        function setupInputHandlers() {
+            const handleMove = (e, isTouch) => {
+                if (!isPlaying) return;
+                e.preventDefault(); 
+
+                const rect = canvas.getBoundingClientRect();
+                let clientX, clientY;
+
+                if (isTouch) {
+                    clientX = e.touches[0].clientX;
+                    clientY = e.touches[0].clientY;
+                } else {
+                    clientX = e.clientX;
+                    clientY = e.clientY;
+                }
+                
+                player.x = clientX - rect.left;
+                player.y = clientY - rect.top;
+
+                player.x = Math.max(player.width / 2, Math.min(canvas.width - player.width / 2, player.x));
+                player.y = Math.max(player.height / 2, Math.min(canvas.height - player.height / 2, player.y));
+            };
+
+            canvas.addEventListener('touchstart', (e) => handleMove(e, true), { passive: false });
+            canvas.addEventListener('touchmove', (e) => handleMove(e, true), { passive: false });
+            
+            canvas.addEventListener('mousemove', (e) => handleMove(e, false));
+        }
+
+    </script>
+</body>
+</html>
+
+شhttps://g.co/gemini/share/6ffea59e568c
